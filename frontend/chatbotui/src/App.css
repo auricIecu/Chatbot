@@ -8,9 +8,27 @@
   overflow: hidden;
 }
 
-/* Base mobile styles */
+/* Mobile-first responsive styles */
 * {
   box-sizing: border-box;
+}
+
+/* Safari mobile viewport fixes */
+@supports (padding: max(0px)) {
+  .mobile-safe-area {
+    padding-bottom: max(env(safe-area-inset-bottom), 100px);
+  }
+}
+
+/* Prevent Safari zoom on input focus */
+input[type="text"], textarea {
+  font-size: 16px !important;
+}
+
+/* Full height for mobile */
+html, body {
+  height: 100%;
+  overflow-x: hidden;
 }
 
 body {
