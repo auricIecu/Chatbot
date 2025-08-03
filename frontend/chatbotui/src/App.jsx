@@ -153,10 +153,10 @@ const App = () => {
               key={index}
               className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] p-3 rounded-2xl ${
+              <div className={`${
                 msg.sender === 'user' 
-                  ? 'bg-blue-600 text-white rounded-br-sm' 
-                  : 'bg-gray-800 text-white rounded-bl-sm'
+                  ? 'max-w-[80%] p-3 rounded-2xl backdrop-blur-sm bg-gray-900/30 text-white rounded-br-sm border border-gray-700/20' 
+                  : 'w-full p-3 text-white text-justify'
               }`}>
                 <p className="text-sm">{msg.text}</p>
               </div>
