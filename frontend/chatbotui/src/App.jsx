@@ -35,6 +35,12 @@ const App = () => {
     
     const words = fullText.split(' ');
     let currentIndex = 0;
+    let aiMessageStartPosition = null;
+    
+    // Capture the current scroll position as the start of AI message
+    if (chatContainerRef.current) {
+      aiMessageStartPosition = chatContainerRef.current.scrollTop;
+    }
     
     const typeInterval = setInterval(() => {
       if (currentIndex < words.length) {
@@ -42,12 +48,19 @@ const App = () => {
           const newText = currentIndex === 0 ? words[currentIndex] : prev + ' ' + words[currentIndex];
           return newText;
         });
+        
+        // Auto-scroll to follow the typing
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+        
         currentIndex++;
       } else {
         clearInterval(typeInterval);
         setIsTyping(false);
         setCurrentTypingText('');
         setTypingMessageId(null);
+        
         // Add the complete message to chat history
         setChatHistory(prevHistory => {
           const updatedHistory = [...prevHistory];
@@ -61,6 +74,13 @@ const App = () => {
           }
           return updatedHistory;
         });
+        
+        // Reset scroll to the start of the AI message after a short delay
+        setTimeout(() => {
+          if (chatContainerRef.current && aiMessageStartPosition !== null) {
+            chatContainerRef.current.scrollTop = aiMessageStartPosition;
+          }
+        }, 500); // 500ms delay before resetting scroll
       }
     }, 100); // Adjust speed here (100ms between words)
   };
@@ -201,6 +221,7 @@ const App = () => {
             <div
               key={index}
               className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              data-message-id={msg.id}
             >
               <div className={`${
                 msg.sender === 'user' 
