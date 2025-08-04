@@ -31,6 +31,16 @@ html, body {
   overflow-x: hidden;
 }
 
+/* Typewriter cursor animation */
+.typewriter-cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 body {
   margin: 0;
   padding: 0;

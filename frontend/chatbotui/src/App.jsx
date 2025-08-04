@@ -17,11 +17,53 @@ const App = () => {
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isFirstInteraction, setIsFirstInteraction] = useState(true);
   const [conversationId, setConversationId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentTypingText, setCurrentTypingText] = useState('');
+  const [typingMessageId, setTypingMessageId] = useState(null);
 
   const chatContainerRef = useRef(null);
+
+  // Typewriter effect function
+  const typewriterEffect = (fullText, messageId) => {
+    setIsTyping(true);
+    setCurrentTypingText('');
+    setTypingMessageId(messageId);
+    
+    const words = fullText.split(' ');
+    let currentIndex = 0;
+    
+    const typeInterval = setInterval(() => {
+      if (currentIndex < words.length) {
+        setCurrentTypingText(prev => {
+          const newText = currentIndex === 0 ? words[currentIndex] : prev + ' ' + words[currentIndex];
+          return newText;
+        });
+        currentIndex++;
+      } else {
+        clearInterval(typeInterval);
+        setIsTyping(false);
+        setCurrentTypingText('');
+        setTypingMessageId(null);
+        // Add the complete message to chat history
+        setChatHistory(prevHistory => {
+          const updatedHistory = [...prevHistory];
+          const lastIndex = updatedHistory.length - 1;
+          if (updatedHistory[lastIndex] && updatedHistory[lastIndex].sender === 'ai') {
+            updatedHistory[lastIndex] = {
+              ...updatedHistory[lastIndex],
+              text: fullText,
+              id: messageId
+            };
+          }
+          return updatedHistory;
+        });
+      }
+    }, 100); // Adjust speed here (100ms between words)
+  };
 
   useEffect(() => {
     if (chatContainerRef.current && chatHistory.length > 0) {
@@ -101,11 +143,14 @@ const App = () => {
       }
 
       const data = await response.json();
+      // Add placeholder AI message that will be updated by typewriter effect
       setChatHistory((prevHistory) => [
         ...prevHistory,
-        { sender: 'ai', text: data.response, id: data.message_id },
+        { sender: 'ai', text: '', id: data.message_id },
       ]);
       setMessage('');
+      // Start typewriter effect
+      typewriterEffect(data.response, data.message_id);
     } catch (error) {
       console.error('Error:', error);
       setLoading(false);
@@ -162,7 +207,17 @@ const App = () => {
                   ? 'max-w-[80%] p-3 rounded-2xl backdrop-blur-sm bg-gray-900/30 text-white rounded-br-sm border border-gray-700/20' 
                   : 'w-full p-3 text-white text-justify'
               }`}>
-                <p className="text-sm">{msg.text}</p>
+                <p className="text-sm">
+                  {msg.sender === 'ai' && isTyping && typingMessageId === msg.id
+                    ? (
+                      <>
+                        {currentTypingText}
+                        <span className="typewriter-cursor">|</span>
+                      </>
+                    )
+                    : msg.text
+                  }
+                </p>
               </div>
             </div>
           ))}
