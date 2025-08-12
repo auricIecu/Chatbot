@@ -30,24 +30,27 @@ const App = () => {
   // Typewriter effect function
   const typewriterEffect = (fullText, messageId) => {
     setIsTyping(true);
-    setCurrentTypingText('');
     setTypingMessageId(messageId);
     
     const words = fullText.split(' ');
-    let currentIndex = 0;
-    let aiMessageStartPosition = null;
+    let currentIndex = 1;
+    let currentAiMessageStartPosition = null;
     
-    // Capture the current scroll position as the start of AI message
-    if (chatContainerRef.current) {
-      aiMessageStartPosition = chatContainerRef.current.scrollTop;
+    // Start with the first word immediately (don't clear text first)
+    if (words.length > 0) {
+      setCurrentTypingText(words[0]);
+      
+      // Capture the scroll position right after the first word is set
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          currentAiMessageStartPosition = chatContainerRef.current.scrollTop;
+        }
+      }, 50);
     }
     
     const typeInterval = setInterval(() => {
       if (currentIndex < words.length) {
-        setCurrentTypingText(prev => {
-          const newText = currentIndex === 0 ? words[currentIndex] : prev + ' ' + words[currentIndex];
-          return newText;
-        });
+        setCurrentTypingText(prev => prev + ' ' + words[currentIndex]);
         
         // Auto-scroll to follow the typing
         if (chatContainerRef.current) {
@@ -75,10 +78,16 @@ const App = () => {
           return updatedHistory;
         });
         
-        // Reset scroll to the start of the AI message after a short delay
+        // Reset scroll to the start of the CURRENT AI message after a short delay
         setTimeout(() => {
-          if (chatContainerRef.current && aiMessageStartPosition !== null) {
-            chatContainerRef.current.scrollTop = aiMessageStartPosition;
+          if (chatContainerRef.current) {
+            // Find the current AI message element and scroll to it
+            const aiMessages = chatContainerRef.current.querySelectorAll('[data-message-id="' + messageId + '"]');
+            if (aiMessages.length > 0) {
+              aiMessages[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (currentAiMessageStartPosition !== null) {
+              chatContainerRef.current.scrollTop = currentAiMessageStartPosition;
+            }
           }
         }, 500); // 500ms delay before resetting scroll
       }
@@ -134,16 +143,32 @@ const App = () => {
     }
   };
 
-  const sendMessage = async (event) => {
-    event.preventDefault();
-
-    if (message.trim() === '') return;
+  // Function to send a message (either from input or predefined prompt)
+  const sendMessageToAPI = async (messageText) => {
+    if (messageText.trim() === '') return;
 
     setLoading(true);
     setChatHistory((prevHistory) => [
       ...prevHistory,
-      { sender: 'user', text: message },
+      { sender: 'user', text: messageText },
     ]);
+
+    // Check if message contains "Fermagri" and provide static response
+    if (messageText.toLowerCase().includes('fermagri')) {
+      const messageId = Date.now();
+      setChatHistory((prevHistory) => [
+        ...prevHistory,
+        { sender: 'ai', text: '', id: messageId },
+      ]);
+      setMessage('');
+      setLoading(false);
+      
+      // Static response about Fermagri
+      const fermagriResponse = `🏢 Fermagri es una empresa ecuatoriana que, desde 1998, importa y comercializa fertilizantes con un portafolio que abarca productos edáficos y solubles.\n\nEn su sitio presentan cinco líneas: Edáficos, Solubles, Master Protec, Especializados y Acuícolas. Además de la oferta de productos, declaran servicios de asesoría técnica —con un equipo de ingenieros que acompaña con planes de nutrición— y logística. \n\nEntre los productos listados se encuentran KALISOP (sulfato de potasio granular), PATENTKALI (potasio con magnesio y azufre en sulfatos solubles), KS MAG+B (aporte de K, Mg y S), DAP (fuente de fósforo y nitrógeno), nitrato de magnesio, ulexita granular (borato), mezclas específicas como Fermapastos Gold (pastos y forraje), Fermacaña Gold (caña de azúcar, variante Sierra), Fermarroz Gold (arroz), Platanero Gold (para palma aceitera en producción), y productos para acuicultura como el muriato acuícola KCl 60% K₂O y el nitrato de amonio acuícola. \n\nPara contacto, el sitio muestra el correo info@fermagri.ec y una dirección en Quito: Av. Troncal E-35 Lote 01 y Av. Los Guabos, además de una sección de "Contactos".`;
+      
+      typewriterEffect(fermagriResponse, messageId);
+      return;
+    }
 
     try {
       const response = await fetch(`http://localhost:8000/chat/`, {
@@ -152,9 +177,9 @@ const App = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message,
+          message: messageText,
           role: 'user',
-          conversation_id: conversationId, // Send the conversation_id with the message
+          conversation_id: conversationId,
         }),
       });
 
@@ -177,6 +202,27 @@ const App = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Original sendMessage function for form submission
+  const sendMessage = async (event) => {
+    event.preventDefault();
+    await sendMessageToAPI(message);
+  };
+
+  // Function to handle predefined prompts with static responses
+  const sendPredefinedPrompt = async (promptText, staticResponse) => {
+    if (loading) return; // Prevent multiple simultaneous requests
+    
+    // Only add static AI response (no user message shown in chat)
+    const messageId = Date.now();
+    setChatHistory((prevHistory) => [
+      ...prevHistory,
+      { sender: 'ai', text: '', id: messageId },
+    ]);
+    
+    // Start typewriter effect with static response
+    typewriterEffect(staticResponse, messageId);
   };
 
   return (
@@ -321,34 +367,45 @@ const App = () => {
       <div className="bg-[#1a1a1a] px-4 py-2 flex-shrink-0">
         <div className="flex justify-around items-center">
           <button 
-            onClick={() => setActiveTab('search')}
-            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation ${
-              activeTab === 'search' ? 'bg-gray-700' : 'hover:bg-gray-800'
+            onClick={() => sendPredefinedPrompt(
+               'Ayúdame a buscar información sobre productos específicos.',
+               '🔍 Puedo ayudarte a encontrar información sobre cualquier producto específico de Fermagri. Dime: \n\n- Nombre del producto que buscas'
+            )}
+            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation hover:bg-gray-800 ${
+              loading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             style={{ WebkitTapHighlightColor: 'transparent' }}
-            aria-label="Buscar"
+            disabled={loading}
           >
             <img src={iconoBuscar} alt="Buscar" className="w-11 h-11" />
           </button>
           
           <button 
-            onClick={() => setActiveTab('inventory')}
-            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation ${
-              activeTab === 'inventory' ? 'bg-gray-700' : 'hover:bg-gray-800'
+            onClick={() => sendPredefinedPrompt(
+              'Necesito ayuda con informacion de inventario. ¿Puedes ayudarme consultar información sobre el stock de productos?',
+              '📦 Puedo ayudarte con informacion de inventario de Fermagri. Dime:\n\n- Nombre del producto del que quieres saber su stock'
+            )}
+            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation hover:bg-gray-800 ${
+              loading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             style={{ WebkitTapHighlightColor: 'transparent' }}
             aria-label="Inventario"
+            disabled={loading}
           >
             <img src={iconoInventario} alt="Inventario" className="w-11 h-11" />
           </button>
           
           <button 
-            onClick={() => setActiveTab('imports')}
-            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation ${
-              activeTab === 'imports' ? 'bg-gray-700' : 'hover:bg-gray-800'
+            onClick={() => sendPredefinedPrompt(
+              'Quiero información sobre importaciones. ¿Puedes ayudarme con la fecha de llegada de importaciones de productos especificos?',
+              '🚢  Puedo proporcionarte información sobre importaciones de Fermagri. Dime:\n\n- Nombre del producto del que quieres saber su futura importacion'
+            )}
+            className={`mobile-button p-3 rounded-full transition-colors touch-manipulation hover:bg-gray-800 ${
+              loading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             style={{ WebkitTapHighlightColor: 'transparent' }}
             aria-label="Importaciones"
+            disabled={loading}
           >
             <img src={iconoImportaciones} alt="Importaciones" className="w-11 h-11" />
           </button>
