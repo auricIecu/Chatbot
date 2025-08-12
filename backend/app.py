@@ -42,11 +42,26 @@ else:
 app = FastAPI()
 
 
+# Configure CORS for production and development
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    frontend_url
+]
+
+# Add Netlify domains if FRONTEND_URL contains netlify
+if "netlify" in frontend_url.lower():
+    allowed_origins.extend([
+        "https://*.netlify.app",
+        "https://*.netlify.com"
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
