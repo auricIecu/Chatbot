@@ -33,20 +33,23 @@ const App = () => {
     setTypingMessageId(messageId);
     
     const words = fullText.split(' ');
-    let currentIndex = 1;
+    let currentIndex = 2; // Start from third word since first two are already shown
     let currentAiMessageStartPosition = null;
     
-    // Start with the first word immediately (don't clear text first)
-    if (words.length > 0) {
+    // Start with the first two words immediately (emoji + "Puedo")
+    if (words.length >= 2) {
+      setCurrentTypingText(words[0] + ' ' + words[1]);
+    } else if (words.length > 0) {
       setCurrentTypingText(words[0]);
-      
-      // Capture the scroll position right after the first word is set
-      setTimeout(() => {
-        if (chatContainerRef.current) {
-          currentAiMessageStartPosition = chatContainerRef.current.scrollTop;
-        }
-      }, 50);
+      currentIndex = 1;
     }
+    
+    // Capture the scroll position right after the initial words are set
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        currentAiMessageStartPosition = chatContainerRef.current.scrollTop;
+      }
+    }, 50);
     
     const typeInterval = setInterval(() => {
       if (currentIndex < words.length) {
@@ -214,11 +217,15 @@ const App = () => {
   const sendPredefinedPrompt = async (promptText, staticResponse) => {
     if (loading) return; // Prevent multiple simultaneous requests
     
-    // Only add static AI response (no user message shown in chat)
+    // Get first two words of the static response (emoji + "Puedo")
+    const words = staticResponse.split(' ');
+    const firstTwoWords = words.length >= 2 ? words[0] + ' ' + words[1] : (words.length > 0 ? words[0] : '');
+    
+    // Only add static AI response with first two words already visible
     const messageId = Date.now();
     setChatHistory((prevHistory) => [
       ...prevHistory,
-      { sender: 'ai', text: '', id: messageId },
+      { sender: 'ai', text: firstTwoWords, id: messageId },
     ]);
     
     // Start typewriter effect with static response
